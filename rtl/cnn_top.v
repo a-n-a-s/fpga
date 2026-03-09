@@ -360,14 +360,55 @@ module cnn_top #(
                 // Early Exit Check - decide whether to skip Conv2, GAP, FC
                 // Simple heuristic: check if Conv1 features show clear class preference
                 S_EARLY_EXIT_CHECK: begin
-                    // For now, always continue to full network (early exit disabled by default)
-                    // Initialize Conv2 variables for full network execution
-                    conv_f      <= 4'd0;
-                    conv_pos    <= 8'd0;
-                    conv_k      <= 3'd0;
-                    conv2_in_ch <= 4'd0;
-                    acc         <= {ACC_WIDTH{1'b0}};
-                    state       <= S_CONV2;
+                    // Simple early exit classifier: sum of Conv1 features
+                    // If sum is strongly positive or negative, exit early with prediction
+                    begin
+                        integer f;
+                        reg signed [15:0] feature_sum;
+                        feature_sum = 0;
+                        for (f = 0; f < CONV1_NUM_FILTERS; f = f + 1) begin
+                            feature_sum = feature_sum + conv1_buf[f];  // First position features
+                        end
+                        
+                        // Early exit decision based on feature sum threshold
+                        if (feature_sum > 16'd500) begin
+                            // Strong Class 0 signal - exit early
+                            early_exit_taken <= 1'b1;
+                            exit_layer <= LAYER_EARLY_EXIT;
+                            class_out <= 2'd0;  // Predict Class 0
+                            confidence <= 8'd200;  // High confidence estimate
+                            high_confidence <= 1'b1;
+                            valid_out <= 1'b1;
+`ifndef SYNTHESIS
+                            $display("DEBUG_EARLY_EXIT_CLASS0: feature_sum=%0d, exiting after Pool", feature_sum);
+`endif
+                            state <= S_DONE;
+                        end
+                        else if (feature_sum < -16'd500) begin
+                            // Strong Class 1 signal - exit early
+                            early_exit_taken <= 1'b1;
+                            exit_layer <= LAYER_EARLY_EXIT;
+                            class_out <= 2'd1;  // Predict Class 1
+                            confidence <= 8'd200;  // High confidence estimate
+                            high_confidence <= 1'b1;
+                            valid_out <= 1'b1;
+`ifndef SYNTHESIS
+                            $display("DEBUG_EARLY_EXIT_CLASS1: feature_sum=%0d, exiting after Pool", feature_sum);
+`endif
+                            state <= S_DONE;
+                        end
+                        else begin
+                            // Uncertain - continue to full network
+                            early_exit_taken <= 1'b0;
+                            exit_layer <= LAYER_FULL;
+                            conv_f      <= 4'd0;
+                            conv_pos    <= 8'd0;
+                            conv_k      <= 3'd0;
+                            conv2_in_ch <= 4'd0;
+                            acc         <= {ACC_WIDTH{1'b0}};
+                            state       <= S_CONV2;
+                        end
+                    end
                 end
 
                 // Conv2D: in_ch=8, out_ch=16, kernel=3, padding='same'
