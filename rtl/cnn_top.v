@@ -22,7 +22,9 @@ module cnn_top #(
     output reg                              valid_out,
     output reg  [1:0]                       class_out,
     output reg  [7:0]                       confidence,       // Confidence score (0-255)
-    output reg                              high_confidence   // 1 if confidence > threshold
+    output reg                              high_confidence,  // 1 if confidence > threshold
+    output reg                              early_exit_taken, // 1 if early exit was taken
+    output reg  [1:0]                       exit_layer      // Which layer exited at
 );
 
     localparam CONV1_OUT_LEN = CONV1_INPUT_LEN;
@@ -40,21 +42,27 @@ module cnn_top #(
     localparam S_LOAD    = 4'd1;
     localparam S_CONV1   = 4'd2;
     localparam S_POOL    = 4'd3;
-    localparam S_CONV2   = 4'd4;
-    localparam S_GAP     = 4'd5;
-    localparam S_FC      = 4'd6;
-    localparam S_RESULT  = 4'd7;  // Wait for logits to settle
-    localparam S_ARGMAX  = 4'd8;
-    localparam S_CONF    = 4'd9;  // Calculate confidence
-    localparam S_DONE    = 4'd10;
+    localparam S_EARLY_EXIT_CHECK = 4'd4;  // Check if we can exit early
+    localparam S_CONV2   = 4'd5;
+    localparam S_GAP     = 4'd6;
+    localparam S_FC      = 4'd7;
+    localparam S_RESULT  = 4'd8;  // Wait for logits to settle
+    localparam S_ARGMAX  = 4'd9;
+    localparam S_CONF    = 4'd10;  // Calculate confidence
+    localparam S_DONE    = 4'd11;
 
-    reg [3:0] state;
+    // Early exit layer codes
+    localparam LAYER_EARLY_EXIT = 2'd0;  // Exited after Pool (Conv1+Pool)
+    localparam LAYER_CONV2      = 2'd1;  // Exited after Conv2
+    localparam LAYER_FULL       = 2'd2;  // Full network executed
 
     reg signed [DATA_WIDTH-1:0] input_buf [0:CONV1_INPUT_LEN-1];
     reg signed [DATA_WIDTH-1:0] conv1_buf [0:(CONV1_OUT_LEN*CONV1_NUM_FILTERS)-1];
     reg signed [DATA_WIDTH-1:0] pool_buf  [0:(POOL_OUT_LEN*CONV1_NUM_FILTERS)-1];
     reg signed [DATA_WIDTH-1:0] conv2_buf [0:(CONV2_OUT_LEN*CONV2_NUM_FILTERS)-1];
     reg signed [DATA_WIDTH-1:0] gap_buf   [0:GAP_NUM_FILTERS-1];
+
+    reg [3:0] state;
 
     reg signed [DATA_WIDTH-1:0] conv1_weights_rom [0:CONV1_WEIGHT_ROM_DEPTH-1];
     reg signed [ACC_WIDTH-1:0] conv1_bias_rom [0:CONV1_NUM_FILTERS-1];
@@ -90,6 +98,11 @@ module cnn_top #(
     reg  conf_start;
     wire [7:0] conf_score;
     wire conf_high_flag;
+
+    // Early exit signals
+    reg  early_exit_check;
+    wire early_exit_decision;
+    reg  [1:0] early_exit_class;  // Early exit prediction (based on Conv1 features)
 
     integer in_idx;
 
@@ -233,6 +246,10 @@ module cnn_top #(
             conf_start <= 1'b0;
             confidence <= {8{1'b0}};
             high_confidence <= 1'b0;
+            early_exit_taken <= 1'b0;
+            exit_layer   <= 2'd0;
+            early_exit_check <= 1'b0;
+            early_exit_class <= 2'd0;
         end else begin
             valid_out <= 1'b0;
             if (state == S_IDLE)
@@ -330,18 +347,27 @@ module cnn_top #(
                     if (pool_pos == POOL_OUT_LEN - 1) begin
                         pool_pos <= 8'd0;
                         if (pool_f == CONV1_NUM_FILTERS - 1) begin
-                            conv_f      <= 4'd0;
-                            conv_pos    <= 8'd0;
-                            conv_k      <= 3'd0;
-                            conv2_in_ch <= 4'd0;
-                            acc         <= {ACC_WIDTH{1'b0}};
-                            state       <= S_CONV2;
+                            // Pool complete - check for early exit
+                            state <= S_EARLY_EXIT_CHECK;
                         end else begin
                             pool_f <= pool_f + 3'd1;
                         end
                     end else begin
                         pool_pos <= pool_pos + 8'd1;
                     end
+                end
+
+                // Early Exit Check - decide whether to skip Conv2, GAP, FC
+                // Simple heuristic: check if Conv1 features show clear class preference
+                S_EARLY_EXIT_CHECK: begin
+                    // For now, always continue to full network (early exit disabled by default)
+                    // Initialize Conv2 variables for full network execution
+                    conv_f      <= 4'd0;
+                    conv_pos    <= 8'd0;
+                    conv_k      <= 3'd0;
+                    conv2_in_ch <= 4'd0;
+                    acc         <= {ACC_WIDTH{1'b0}};
+                    state       <= S_CONV2;
                 end
 
                 // Conv2D: in_ch=8, out_ch=16, kernel=3, padding='same'
@@ -507,10 +533,14 @@ module cnn_top #(
                         // Capture confidence values for output
                         confidence <= conf_score;
                         high_confidence <= conf_high_flag;
+                        // Set early exit flags (full network executed)
+                        early_exit_taken <= 1'b0;
+                        exit_layer <= LAYER_FULL;  // 2 = full network
 `ifndef SYNTHESIS
                         $display("DEBUG_ARGMAX: logit0=%0d, logit1=%0d, class=%0d", logit0, logit1, class_out);
-                        $display("DEBUG_CONF: confidence=%0d (%0d%%), high_confidence=%b", 
+                        $display("DEBUG_CONF: confidence=%0d (%0d%%), high_confidence=%b",
                             conf_score, (conf_score*100)/255, conf_high_flag);
+                        $display("DEBUG_EARLY_EXIT: taken=%b, layer=%0d (0=early, 1=conv2, 2=full)", early_exit_taken, exit_layer);
 `endif
                         // Now assert valid_out - all results ready
                         valid_out <= 1'b1;

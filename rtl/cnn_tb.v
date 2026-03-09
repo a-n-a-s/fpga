@@ -27,6 +27,8 @@ module cnn_tb;
     wire [1:0] class_out;
     wire [7:0] confidence;
     wire high_confidence;
+    wire early_exit_taken;
+    wire [1:0] exit_layer;
 
     // Input data storage
     reg signed [DATA_WIDTH-1:0] input_data [0:INPUT_MEM_DEPTH-1];
@@ -53,7 +55,9 @@ module cnn_tb;
         .valid_out(valid_out),
         .class_out(class_out),
         .confidence(confidence),
-        .high_confidence(high_confidence)
+        .high_confidence(high_confidence),
+        .early_exit_taken(early_exit_taken),
+        .exit_layer(exit_layer)
     );
 
     //========================================================================
@@ -147,6 +151,8 @@ module cnn_tb;
         $display("  Predicted Class: %d", class_out);
         $display("  Confidence: %d/255 (%0d%%)", confidence, (confidence*100)/255);
         $display("  High Confidence: %s", high_confidence ? "YES" : "NO");
+        $display("  Early Exit Taken: %s", early_exit_taken ? "YES" : "NO");
+        $display("  Exit Layer: %0d", exit_layer);
         $display("  Total Cycles: %d", cycle_cnt);
         $display("============================================");
 
@@ -162,6 +168,13 @@ module cnn_tb;
         end
         else begin
             $display(">> LOW CONFIDENCE - Consider additional verification");
+        end
+        
+        if (early_exit_taken) begin
+            $display(">> EARLY EXIT - Saved cycles with fast inference");
+        end
+        else begin
+            $display(">> FULL NETWORK - All layers executed");
         end
         
         // Run for a few more cycles
