@@ -1,0 +1,46 @@
+FPGA Hackathon 2026: Technical Report
+
+Title:
+Team Member Names and Email IDs:
+Affiliation:
+Application Domain:
+
+1. Abstract (in 250-500 words): Problem statement, Proposed FPGA-based solution, Key architectural
+features, Major quantitative results
+2. Introduction: Real-world problem description, Importance of Edge AI, Justification for FPGA-based
+implementation instead of cloud-based solutions, Related work and existing approaches, Motivation and
+objectives
+3. Novelty and Key Technical Contributions: Novel AI/ML model approach (if any), Custom hardware
+accelerator architecture, Pipeline / parallel processing strategy, Resource optimization techniques,
+Hardware–software co-design approach (if used)
+4. Dataset Description: Dataset source (with link), Number of samples, Input format (image size, signal
+length, feature dimensions), Train/test split
+5. AI/ML Model Description: Model type (CNN, MLP, SVM, etc.), Architecture diagram, Layers /
+neurons, Activation functions, Input/output dimensions, Model parameter count
+6. Software Performance: Accuracy, Precision / Recall / F1-score, CPU inference latency, GPU inference
+latency (if applicable), Comparison with existing software-based methods.
+7. Hardware Architecture: Block diagram, Functional-level architecture, Dataflow description, Pipeline
+depth, Parallel computation units, Memory hierarchy, Area–time complexity analysis, Computational
+complexity. Quantizing technique used (Fixed-Point, Floating-Point, etc)
+8. RTL Implementation: describe custom Verilog modules, interface design and implementation
+methodology (Vivado-flow).
+Note: Higher weightage will be given to custom, optimized RTL implementations over automatically
+generated or IP-based RTL designs.
+9. Functional Verification and Simulation: Testbench description, Output waveforms, Functional
+correctness validation, Hw-Sw co-design Co-simulation (if used)
+10. FPGA Implementation Results (if available):
+a. Experimental setup: FPGA board used (e.g., ZedBoard, Zybo, PYNQ) in experimental setup with
+photograph, Tool chain and Implementation methodology (e.g., Vivado RTL flow, Vivado–Vitis
+hardware–software co-design flow, Vivado–PYNQ flow, HLS4ML, System Generator), Clock
+
+configuration and target frequency, Communication interface used (AXI, UART, SPI, etc.), On-
+chip / soft processor usage (if applicable).
+
+b. Resource Utilization: LUT, FF, DSP, BRAM
+c. Performance Metrics: Clock frequency, Latency, Throughput, Power estimation, Memory
+utilization, Communication overhead (for HW–SW co-design)
+d. Comparative Performance Analysis: Pure software vs Pure hardware (FPGA) vs co-design (Fully
+accelerated and/or partially accelerated), vs CPU vs GPU; comparing with quantizing technique
+(Fixed-Point, Floating-Point, etc), Comparison with recent state-of-the-art works
+e. Scalability Discussion: How architecture scales for larger models, Multi-layer expansion, etc
+11. Conclusion: Summary of contribution, Performance gains, Resource efficiency, Future improvements

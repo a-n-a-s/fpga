@@ -1,0 +1,49 @@
+# Simulation outputs
+*.vcd
+*.dump
+*.fsdb
+
+# Generated data files
+input_data.mem
+rtl_intermediates.dump
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test results (keep config/, exclude large generated files)
+config/*.json
+config/*.txt
+!config/quant_params.json
+!config/generated_multipliers.json
+
+# Models directory (keep small files, exclude large numpy arrays)
+models/*.tflite
+models/*.npy
+models/*.mem
+
+# 1_1data (keep structure, exclude large test data)
+1_1data/*.npy
+
+# Scripts binary
+scripts/simv
+
+# Waveforms
+simulation/

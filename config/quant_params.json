@@ -1,0 +1,258 @@
+{
+  "input": {
+    "name": "serving_default_keras_tensor:0",
+    "shape": [
+      1,
+      12,
+      1
+    ],
+    "dtype": "<class 'numpy.int8'>",
+    "scale": [
+      0.003921568859368563
+    ],
+    "zero_point": [
+      -128
+    ]
+  },
+  "output": {
+    "name": "StatefulPartitionedCall_1:0",
+    "shape": [
+      1,
+      2
+    ],
+    "dtype": "<class 'numpy.int8'>",
+    "scale": [
+      0.05621922388672829
+    ],
+    "zero_point": [
+      0
+    ]
+  },
+  "weights": {
+    "conv1": {
+      "name": "tfl.pseudo_qconst5",
+      "shape": [
+        8,
+        1,
+        3,
+        1
+      ],
+      "dtype": "<class 'numpy.int8'>",
+      "scale": [
+        0.003742239437997341,
+        0.005333079025149345,
+        0.0022709546610713005,
+        0.0037753030192106962,
+        0.010360749438405037,
+        0.0029601724818348885,
+        0.00827120989561081,
+        0.003345497651025653
+      ],
+      "zero_point": [
+        0
+      ]
+    },
+    "conv2": {
+      "name": "tfl.pseudo_qconst3",
+      "shape": [
+        16,
+        1,
+        3,
+        8
+      ],
+      "dtype": "<class 'numpy.int8'>",
+      "scale": [
+        0.014413491822779179,
+        0.0021256403997540474,
+        0.016295040026307106,
+        0.015488111414015293,
+        0.019138524308800697,
+        0.017406342551112175,
+        0.015624342486262321,
+        0.01005406305193901,
+        0.015970224514603615,
+        0.013512698002159595,
+        0.01796175166964531,
+        0.0024211625568568707,
+        0.012761115096509457,
+        0.002212410094216466,
+        0.01734152063727379,
+        0.0034560321364551783
+      ],
+      "zero_point": [
+        0
+      ]
+    },
+    "dense": {
+      "name": "tfl.pseudo_qconst1",
+      "shape": [
+        2,
+        16
+      ],
+      "dtype": "<class 'numpy.int8'>",
+      "scale": [
+        0.011729610152542591,
+        0.009688135236501694
+      ],
+      "zero_point": [
+        0
+      ]
+    }
+  },
+  "bias": {
+    "conv1": {
+      "name": "tfl.pseudo_qconst4",
+      "shape": [
+        8
+      ],
+      "dtype": "<class 'numpy.int32'>",
+      "scale": [
+        1.4675450074719265e-05,
+        2.0914036213071086e-05,
+        8.905704817152582e-06,
+        1.4805110367888119e-05,
+        4.0630391595186666e-05,
+        1.160852025350323e-05,
+        3.243612081860192e-05,
+        1.311959931626916e-05
+      ],
+      "zero_point": [
+        0
+      ]
+    },
+    "conv2": {
+      "name": "tfl.pseudo_qconst2",
+      "shape": [
+        16
+      ],
+      "dtype": "<class 'numpy.int32'>",
+      "scale": [
+        6.706474960083142e-05,
+        9.89042382570915e-06,
+        7.581943646073341e-05,
+        7.206486770883203e-05,
+        8.904992864700034e-05,
+        8.099023398244753e-05,
+        7.269874186022207e-05,
+        4.6780700358795e-05,
+        7.430809637298808e-05,
+        6.287343421718106e-05,
+        8.357450133189559e-05,
+        1.126546339946799e-05,
+        5.937638343311846e-05,
+        1.0294155799783766e-05,
+        8.068862371146679e-05,
+        1.608062484592665e-05
+      ],
+      "zero_point": [
+        0
+      ]
+    },
+    "dense": {
+      "name": "tfl.pseudo_qconst",
+      "shape": [
+        2
+      ],
+      "dtype": "<class 'numpy.int32'>",
+      "scale": [
+        8.138710836647078e-05,
+        6.722212128806859e-05
+      ],
+      "zero_point": [
+        0
+      ]
+    }
+  },
+  "activations": {
+    "serving_default_keras_tensor": {
+      "name": "serving_default_keras_tensor:0",
+      "shape": [
+        1,
+        12,
+        1
+      ],
+      "dtype": "<class 'numpy.int8'>",
+      "scale": [
+        0.003921568859368563
+      ],
+      "zero_point": [
+        -128
+      ]
+    },
+    "conv1d_1/BiasAdd": {
+      "name": "sequential_1/re_lu_1/Relu;sequential_1/conv1d_1/BiasAdd;sequential_1/conv1d_1/convolution/Squeeze;;sequential_1/conv1d_1/convolution",
+      "shape": [
+        1,
+        1,
+        12,
+        8
+      ],
+      "dtype": "<class 'numpy.int8'>",
+      "scale": [
+        0.004652915056794882
+      ],
+      "zero_point": [
+        -128
+      ]
+    },
+    "max_pooling1d_1/MaxPool1d/Squeeze": {
+      "name": "sequential_1/max_pooling1d_1/MaxPool1d/Squeeze",
+      "shape": [
+        1,
+        6,
+        8
+      ],
+      "dtype": "<class 'numpy.int8'>",
+      "scale": [
+        0.004652915056794882
+      ],
+      "zero_point": [
+        -128
+      ]
+    },
+    "conv1d_1_2/BiasAdd": {
+      "name": "sequential_1/re_lu_1_2/Relu;sequential_1/conv1d_1_2/BiasAdd;sequential_1/conv1d_1_2/convolution/Squeeze;;sequential_1/conv1d_1_2/convolution",
+      "shape": [
+        1,
+        1,
+        6,
+        16
+      ],
+      "dtype": "<class 'numpy.int8'>",
+      "scale": [
+        0.01695358008146286
+      ],
+      "zero_point": [
+        -128
+      ]
+    },
+    "global_average_pooling1d_1/Mean": {
+      "name": "sequential_1/global_average_pooling1d_1/Mean",
+      "shape": [
+        1,
+        16
+      ],
+      "dtype": "<class 'numpy.int8'>",
+      "scale": [
+        0.006938602775335312
+      ],
+      "zero_point": [
+        -128
+      ]
+    },
+    "StatefulPartitionedCall": {
+      "name": "StatefulPartitionedCall_1:0",
+      "shape": [
+        1,
+        2
+      ],
+      "dtype": "<class 'numpy.int8'>",
+      "scale": [
+        0.05621922388672829
+      ],
+      "zero_point": [
+        0
+      ]
+    }
+  }
+}

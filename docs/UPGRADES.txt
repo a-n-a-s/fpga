@@ -1,0 +1,383 @@
+Great — you’re basically **turning your current CNN FPGA project into a mini AI accelerator architecture**. The key is **adding the new features without breaking your existing design**.
+
+Below is a **clear engineering roadmap** you can follow step-by-step.
+
+---
+
+# 🧠 Current Situation (Your Base System)
+
+From your resource table your design is small:
+
+```
+LUT 346
+FF  172
+```
+
+Which means you likely have something like:
+
+```
+Image Input
+   ↓
+Convolution
+   ↓
+Activation
+   ↓
+Classifier
+   ↓
+Prediction
+```
+
+We will **upgrade this pipeline**, not rewrite it.
+
+---
+
+# 🧭 Final Target Architecture
+
+Your upgraded system will look like this:
+
+```
+                ┌──────────────────────┐
+Input Image ───►│  Systolic CNN Array  │
+                │   (Conv Engine)      │
+                └──────────┬───────────┘
+                           │
+                           ▼
+                ┌──────────────────────┐
+                │ Activation Buffer    │
+                └──────────┬───────────┘
+                           │
+           ┌───────────────┼───────────────┐
+           ▼                               ▼
+  ┌─────────────────┐           ┌─────────────────┐
+  │ XAI Module      │           │ Confidence Unit │
+  │ (Feature Score) │           │ (Softmax Max)   │
+  └────────┬────────┘           └────────┬────────┘
+           │                               │
+           └──────────────┬────────────────┘
+                          ▼
+                ┌──────────────────────┐
+                │ Early Exit Controller│
+                └──────────┬───────────┘
+                           ▼
+                     Final Prediction
+```
+
+---
+
+# 🚀 STEP 1 — Convert Convolution to Systolic Architecture
+
+### Current (likely)
+
+```
+for each kernel
+   multiply
+   accumulate
+```
+
+Sequential MAC operations.
+
+### Upgrade → **Processing Elements (PE)**
+
+Each PE does:
+
+```
+out = out + (weight × input)
+```
+
+Basic **PE structure**
+
+```
+module PE(
+    input clk,
+    input [7:0] a,
+    input [7:0] b,
+    input [15:0] acc_in,
+    output [15:0] acc_out
+);
+
+assign acc_out = acc_in + (a * b);
+
+endmodule
+```
+
+---
+
+### Build 3×3 Systolic Array
+
+Structure:
+
+```
+PE00  PE01  PE02
+PE10  PE11  PE12
+PE20  PE21  PE22
+```
+
+Data flows like a **wave**:
+
+```
+Inputs → →
+Weights ↓
+```
+
+Each clock cycle:
+
+```
+new input shifts right
+new weight shifts down
+```
+
+Result:
+
+* **9 MAC operations per cycle**
+* Huge speed improvement
+
+---
+
+# 🚀 STEP 2 — Activation Buffer
+
+Store CNN outputs temporarily.
+
+Simple BRAM or register array.
+
+Example:
+
+```
+reg [15:0] activation_map [0:63];
+```
+
+Purpose:
+
+* Feed **XAI module**
+* Feed **confidence unit**
+
+---
+
+# 🚀 STEP 3 — Confidence Prediction Module
+
+Goal:
+
+```
+confidence = highest class probability
+```
+
+Simplified hardware logic:
+
+```
+max_value = max(activation_map)
+sum_value = sum(activation_map)
+
+confidence = max_value / sum_value
+```
+
+Simpler hackathon version:
+
+```
+confidence = max_value
+```
+
+Hardware comparator tree:
+
+```
+a > b ? a : b
+```
+
+Example:
+
+```
+max1 = max(a,b)
+max2 = max(c,d)
+max_final = max(max1,max2)
+```
+
+Resource cost:
+
+```
+~30 LUTs
+```
+
+---
+
+# 🚀 STEP 4 — Early Exit Logic
+
+Decision block.
+
+```
+if(confidence > THRESHOLD)
+      stop_pipeline
+else
+      continue_layers
+```
+
+Verilog logic:
+
+```
+if(confidence > 8'd200)
+    early_exit = 1;
+else
+    early_exit = 0;
+```
+
+Controller FSM:
+
+```
+STATE 0 → run layer1
+STATE 1 → check confidence
+STATE 2 → exit OR continue
+```
+
+---
+
+# 🚀 STEP 5 — XAI Hardware Module
+
+We want something **simple but convincing**.
+
+Goal:
+
+Find **most important feature location**.
+
+Idea:
+
+```
+importance = max activation neuron
+```
+
+Logic:
+
+```
+scan activation map
+find max value
+store index
+```
+
+Example output:
+
+```
+Most active neuron = 14
+```
+
+Interpretation:
+
+```
+Region 14 contributed most to prediction
+```
+
+Hardware:
+
+```
+max_value
+max_index
+```
+
+Example Verilog concept:
+
+```
+if(activation[i] > max_val)
+begin
+   max_val = activation[i];
+   max_index = i;
+end
+```
+
+Resource usage:
+
+```
+~40 LUTs
+```
+
+Very cheap.
+
+---
+
+# 🚀 STEP 6 — Top Level Integration
+
+Modify your top module.
+
+Before:
+
+```
+CNN → classifier → output
+```
+
+After:
+
+```
+CNN_systolic
+      ↓
+activation_buffer
+      ↓
+XAI + confidence
+      ↓
+early_exit_controller
+      ↓
+prediction
+```
+
+Top module sketch:
+
+```
+cnn_systolic core();
+
+activation_buffer buffer();
+
+xai_module explain();
+
+confidence_unit conf();
+
+early_exit_ctrl ctrl();
+```
+
+---
+
+# ⚙️ STEP 7 — Timing Safety
+
+Since you must run on boards like:
+
+* PYNQ-Z2
+* ZedBoard
+
+Target clock:
+
+```
+100 MHz
+```
+
+Tips:
+
+✔ pipeline MAC operations
+✔ avoid long combinational chains
+✔ register outputs of each module
+
+---
+
+# 📈 Expected FPGA Utilization
+
+After upgrades:
+
+```
+LUT 1200 – 1800
+FF  700 – 1200
+BRAM 1–2
+```
+
+Still **very small**.
+
+Your design will still use **<10% FPGA**.
+
+---
+
+# 🏆 What Judges Will See
+
+Your project now contains **4 research topics**:
+
+| Feature               | Field                      |
+| --------------------- | -------------------------- |
+| Systolic array        | High-performance computing |
+| Explainable AI        | Trustworthy AI             |
+| Confidence prediction | Safe AI                    |
+| Early exit            | Efficient inference        |
+
+That is **a very strong academic architecture**.
+
+---
+
+✅ If you want, I can also show you **one trick that can make your project look 10× more advanced without adding much hardware** — something many FPGA hackathon winners use.
