@@ -20,7 +20,9 @@ module cnn_top #(
     input  wire                             valid_in,
     input  wire signed [DATA_WIDTH-1:0]     data_in,
     output reg                              valid_out,
-    output reg  [1:0]                       class_out
+    output reg  [1:0]                       class_out,
+    output reg  [7:0]                       confidence,       // Confidence score (0-255)
+    output reg                              high_confidence   // 1 if confidence > threshold
 );
 
     localparam CONV1_OUT_LEN = CONV1_INPUT_LEN;
@@ -43,7 +45,8 @@ module cnn_top #(
     localparam S_FC      = 4'd6;
     localparam S_RESULT  = 4'd7;  // Wait for logits to settle
     localparam S_ARGMAX  = 4'd8;
-    localparam S_DONE    = 4'd9;
+    localparam S_CONF    = 4'd9;  // Calculate confidence
+    localparam S_DONE    = 4'd10;
 
     reg [3:0] state;
 
@@ -81,6 +84,12 @@ module cnn_top #(
     reg signed [OUT_WIDTH-1:0] logit0;
     reg signed [OUT_WIDTH-1:0] logit1;
     reg [31:0] watchdog;
+
+    // Confidence unit signals
+    wire conf_done;
+    reg  conf_start;
+    wire [7:0] conf_score;
+    wire conf_high_flag;
 
     integer in_idx;
 
@@ -183,6 +192,24 @@ module cnn_top #(
         $readmemh("data/dense_bias_hex.mem", dense_bias_rom);
     end
 
+    //========================================================================
+    // Confidence Unit Instance
+    //========================================================================
+    confidence_unit #(
+        .LOGIT_WIDTH(OUT_WIDTH),
+        .CONF_WIDTH(8),
+        .CONF_THRESHOLD(8'd180)  // 70% confidence threshold
+    ) u_confidence (
+        .clk(clk),
+        .rst(rst),
+        .start(conf_start),
+        .logit0(logit0),
+        .logit1(logit1),
+        .confidence(conf_score),
+        .high_confidence(conf_high_flag),
+        .done(conf_done)
+    );
+
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             state      <= S_IDLE;
@@ -203,6 +230,9 @@ module cnn_top #(
             logit0     <= {OUT_WIDTH{1'b0}};
             logit1     <= {OUT_WIDTH{1'b0}};
             watchdog   <= 32'd0;
+            conf_start <= 1'b0;
+            confidence <= {8{1'b0}};
+            high_confidence <= 1'b0;
         end else begin
             valid_out <= 1'b0;
             if (state == S_IDLE)
@@ -419,50 +449,73 @@ module cnn_top #(
                         class_out = 2'd0;
                         $display("DEBUG_COMPARE: logit1(%0d) > logit0(%0d) = FALSE", logit1, logit0);
                     end
-                    valid_out <= 1'b1;
+                    // Don't assert valid_out yet - wait for confidence
+                    // valid_out <= 1'b1;
+
+                    // Start confidence calculation
+                    conf_start <= 1'b1;
+
+                    // Debug display
 `ifndef SYNTHESIS
-                    $display("DEBUG_ARGMAX: logit0=%0d, logit1=%0d, class=%0d", logit0, logit1, class_out);
-                    
+                    $display("DEBUG_ARGMAX_PREVIEW: logit0=%0d, logit1=%0d, class=%0d", logit0, logit1, class_out);
+
                     // Dump intermediate tensors for parity checking
                     if (DEBUG_DUMP) begin
                         integer dump_fd;
                         integer idx;
                         dump_fd = $fopen("rtl_intermediates.dump", "w");
-                        
+
                         // Dump Conv1 output
                         $fwrite(dump_fd, "=== conv1 ===\n");
                         for (idx = 0; idx < CONV1_OUT_LEN * CONV1_NUM_FILTERS; idx = idx + 1) begin
                             $fwrite(dump_fd, "%0d\n", conv1_buf[idx]);
                         end
-                        
+
                         // Dump Pool output
                         $fwrite(dump_fd, "=== pool ===\n");
                         for (idx = 0; idx < POOL_OUT_LEN * CONV1_NUM_FILTERS; idx = idx + 1) begin
                             $fwrite(dump_fd, "%0d\n", pool_buf[idx]);
                         end
-                        
+
                         // Dump Conv2 output
                         $fwrite(dump_fd, "=== conv2 ===\n");
                         for (idx = 0; idx < CONV2_OUT_LEN * CONV2_NUM_FILTERS; idx = idx + 1) begin
                             $fwrite(dump_fd, "%0d\n", conv2_buf[idx]);
                         end
-                        
+
                         // Dump GAP output
                         $fwrite(dump_fd, "=== gap ===\n");
                         for (idx = 0; idx < GAP_NUM_FILTERS; idx = idx + 1) begin
                             $fwrite(dump_fd, "%0d\n", gap_buf[idx]);
                         end
-                        
+
                         // Dump FC logits
                         $fwrite(dump_fd, "=== fc ===\n");
                         $fwrite(dump_fd, "%0d\n", logit0);
                         $fwrite(dump_fd, "%0d\n", logit1);
-                        
+
                         $fclose(dump_fd);
                         $display("DEBUG: Dumped intermediates to rtl_intermediates.dump");
                     end
 `endif
-                    state <= S_DONE;
+                    state <= S_CONF;  // Calculate confidence
+                end
+
+                S_CONF: begin
+                    if (conf_done) begin
+                        conf_start <= 1'b0;
+                        // Capture confidence values for output
+                        confidence <= conf_score;
+                        high_confidence <= conf_high_flag;
+`ifndef SYNTHESIS
+                        $display("DEBUG_ARGMAX: logit0=%0d, logit1=%0d, class=%0d", logit0, logit1, class_out);
+                        $display("DEBUG_CONF: confidence=%0d (%0d%%), high_confidence=%b", 
+                            conf_score, (conf_score*100)/255, conf_high_flag);
+`endif
+                        // Now assert valid_out - all results ready
+                        valid_out <= 1'b1;
+                        state <= S_DONE;
+                    end
                 end
 
                 S_DONE: begin

@@ -25,11 +25,13 @@ module cnn_tb;
     reg  signed [DATA_WIDTH-1:0] data_in;
     wire valid_out;
     wire [1:0] class_out;
-    
+    wire [7:0] confidence;
+    wire high_confidence;
+
     // Input data storage
     reg signed [DATA_WIDTH-1:0] input_data [0:INPUT_MEM_DEPTH-1];
     integer i, j;
-    
+
     // Counters
     reg [7:0] sample_cnt;
     reg [31:0] cycle_cnt;
@@ -49,7 +51,9 @@ module cnn_tb;
         .valid_in(valid_in),
         .data_in(data_in),
         .valid_out(valid_out),
-        .class_out(class_out)
+        .class_out(class_out),
+        .confidence(confidence),
+        .high_confidence(high_confidence)
     );
 
     //========================================================================
@@ -120,11 +124,11 @@ module cnn_tb;
         $display("All samples fed. Waiting for result...");
         $display("--------------------------------------------");
         
-        // Wait for output
+        // Wait for output (valid_out now includes confidence calculation)
         while (!valid_out) begin
             @(posedge clk);
             cycle_cnt = cycle_cnt + 1;
-            
+
             // Timeout protection
             if (cycle_cnt > 100000) begin
                 $display("ERROR: Timeout waiting for output!");
@@ -132,20 +136,32 @@ module cnn_tb;
             end
         end
         
+        // Results are ready (class + confidence)
+        @(posedge clk);
+        
         // Display result
         @(posedge clk);
         $display("");
         $display("============================================");
         $display("RESULT:");
         $display("  Predicted Class: %d", class_out);
+        $display("  Confidence: %d/255 (%0d%%)", confidence, (confidence*100)/255);
+        $display("  High Confidence: %s", high_confidence ? "YES" : "NO");
         $display("  Total Cycles: %d", cycle_cnt);
         $display("============================================");
-        
+
         if (class_out == 0) begin
             $display("Prediction: NORMAL (Class 0)");
         end
         else begin
             $display("Prediction: HYPOGLYCEMIA (Class 1)");
+        end
+
+        if (high_confidence) begin
+            $display(">> CONFIDENCE THRESHOLD MET - Reliable prediction");
+        end
+        else begin
+            $display(">> LOW CONFIDENCE - Consider additional verification");
         end
         
         // Run for a few more cycles
