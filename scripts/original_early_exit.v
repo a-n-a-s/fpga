@@ -24,13 +24,7 @@ module cnn_top #(
     output reg  [7:0]                       confidence,       // Confidence score (0-255)
     output reg                              high_confidence,  // 1 if confidence > threshold
     output reg                              early_exit_taken, // 1 if early exit was taken
-    output reg  [1:0]                       exit_layer,       // Which layer exited at
-    
-    // XAI outputs (Explainable AI)
-    output reg  [3:0]                       most_important_sample,  // Most important input sample (0-11)
-    output reg  [3:0]                       most_important_filter,  // Most active filter (0-7)
-    output reg  [7:0]                       importance_score,       // Max activation value
-    output reg  [7:0]                       total_activation        // Sum of all activations
+    output reg  [1:0]                       exit_layer      // Which layer exited at
 );
 
     localparam CONV1_OUT_LEN = CONV1_INPUT_LEN;
@@ -48,15 +42,14 @@ module cnn_top #(
     localparam S_LOAD    = 4'd1;
     localparam S_CONV1   = 4'd2;
     localparam S_POOL    = 4'd3;
-    localparam S_XAI     = 4'd4;  // XAI feature scanning
-    localparam S_EARLY_EXIT_CHECK = 4'd5;  // Check if we can exit early
-    localparam S_CONV2   = 4'd6;
-    localparam S_GAP     = 4'd7;
-    localparam S_FC      = 4'd8;
-    localparam S_RESULT  = 4'd9;  // Wait for logits to settle
-    localparam S_ARGMAX  = 4'd10;
-    localparam S_CONF    = 4'd11;  // Calculate confidence
-    localparam S_DONE    = 4'd12;
+    localparam S_EARLY_EXIT_CHECK = 4'd4;  // Check if we can exit early
+    localparam S_CONV2   = 4'd5;
+    localparam S_GAP     = 4'd6;
+    localparam S_FC      = 4'd7;
+    localparam S_RESULT  = 4'd8;  // Wait for logits to settle
+    localparam S_ARGMAX  = 4'd9;
+    localparam S_CONF    = 4'd10;  // Calculate confidence
+    localparam S_DONE    = 4'd11;
 
     // Early exit layer codes
     localparam LAYER_EARLY_EXIT = 2'd0;  // Exited after Pool (Conv1+Pool)
@@ -110,24 +103,6 @@ module cnn_top #(
     reg  early_exit_check;
     wire early_exit_decision;
     reg  [1:0] early_exit_class;  // Early exit prediction (based on Conv1 features)
-
-    // XAI signals
-    reg  xai_start;
-    wire xai_done;
-    wire [3:0] xai_sample;
-    wire [3:0] xai_filter;
-    wire [7:0] xai_score;
-    wire [7:0] xai_total;
-    wire [7:0] xai_avg;
-    reg  xai_write_en;
-    reg [3:0] xai_write_filter;
-    reg [3:0] xai_write_seq;
-    reg  signed [DATA_WIDTH-1:0] xai_write_data;  // Conv1 output for XAI
-    wire xai_read_en;
-    wire [3:0] xai_read_filter;
-    wire [3:0] xai_read_seq;
-    wire signed [DATA_WIDTH-1:0] xai_read_data;
-    wire xai_buffer_ready;
 
     integer in_idx;
 
@@ -248,51 +223,6 @@ module cnn_top #(
         .done(conf_done)
     );
 
-    //========================================================================
-    // XAI Module Instances
-    //========================================================================
-    
-    // Activation Buffer - stores Conv1 outputs for analysis
-    activation_buffer #(
-        .NUM_FILTERS(CONV1_NUM_FILTERS),
-        .SEQ_LEN(CONV1_INPUT_LEN),
-        .DATA_WIDTH(DATA_WIDTH)
-    ) u_activation_buffer (
-        .clk(clk),
-        .rst(rst),
-        .write_en(xai_write_en),
-        .write_filter(xai_write_filter),
-        .write_seq(xai_write_seq),
-        .write_data(xai_write_data),  // Conv1 computed output
-        .read_en(xai_read_en),
-        .read_filter(xai_read_filter),
-        .read_seq(xai_read_seq),
-        .read_data(xai_read_data),
-        .buffer_ready(xai_buffer_ready)
-    );
-    
-    // XAI Scanner - finds most important features
-    xai_scanner #(
-        .NUM_FILTERS(CONV1_NUM_FILTERS),
-        .SEQ_LEN(CONV1_INPUT_LEN),
-        .DATA_WIDTH(DATA_WIDTH),
-        .SCORE_WIDTH(8)
-    ) u_xai_scanner (
-        .clk(clk),
-        .rst(rst),
-        .start(xai_start),
-        .done(xai_done),
-        .read_en(xai_read_en),
-        .read_filter(xai_read_filter),
-        .read_seq(xai_read_seq),
-        .read_data(xai_read_data),
-        .most_important_sample(xai_sample),
-        .most_important_filter(xai_filter),
-        .importance_score(xai_score),
-        .total_activation(xai_total),
-        .avg_activation(xai_avg)
-    );
-
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             state      <= S_IDLE;
@@ -320,16 +250,6 @@ module cnn_top #(
             exit_layer   <= 2'd0;
             early_exit_check <= 1'b0;
             early_exit_class <= 2'd0;
-            // XAI initialization
-            xai_start         <= 1'b0;
-            xai_write_en      <= 1'b0;
-            xai_write_filter  <= 4'd0;
-            xai_write_seq     <= 4'd0;
-            // xai_read_* are wires driven by XAI scanner, don't assign
-            most_important_sample <= 4'd0;
-            most_important_filter <= 4'd0;
-            importance_score  <= 8'd0;
-            total_activation  <= 8'd0;
         end else begin
             valid_out <= 1'b0;
             if (state == S_IDLE)
@@ -390,20 +310,8 @@ module cnn_top #(
                             end
                         conv_k <= conv_k + 3'd1;
                     end else begin
-                        // Compute Conv1 output
-                        begin
-                            reg signed [DATA_WIDTH-1:0] conv1_out;
-                            conv1_out = requant_relu_int8(acc + conv1_bias_rom[conv_f], conv1_mult(conv_f));
-                            
-                            conv1_buf[(conv_pos * CONV1_NUM_FILTERS) + conv_f] <= conv1_out;
-
-                            // XAI: Capture Conv1 output to activation buffer
-                            xai_write_en      <= 1'b1;
-                            xai_write_filter <= conv_f;
-                            xai_write_seq    <= conv_pos;
-                            xai_write_data   <= conv1_out;
-                        end
-                        
+                        conv1_buf[(conv_pos * CONV1_NUM_FILTERS) + conv_f] <=
+                            requant_relu_int8(acc + conv1_bias_rom[conv_f], conv1_mult(conv_f));
 `ifndef SYNTHESIS
                         if (conv_f == 0 && conv_pos == 0) begin
                             $display("DEBUG_CONV1_RESULT: acc=%0d, bias=%0d, acc+b=%0d, mult=%0d",
@@ -439,29 +347,13 @@ module cnn_top #(
                     if (pool_pos == POOL_OUT_LEN - 1) begin
                         pool_pos <= 8'd0;
                         if (pool_f == CONV1_NUM_FILTERS - 1) begin
-                            // Pool complete - start XAI scanning
-                            xai_start <= 1'b1;
-                            state     <= S_XAI;
+                            // Pool complete - check for early exit
+                            state <= S_EARLY_EXIT_CHECK;
                         end else begin
                             pool_f <= pool_f + 3'd1;
                         end
                     end else begin
                         pool_pos <= pool_pos + 8'd1;
-                    end
-                end
-
-                // XAI: Scan activation buffer for feature importance
-                S_XAI: begin
-                    xai_start <= 1'b0;
-                    if (xai_done) begin
-                        // Capture XAI results
-                        most_important_sample <= xai_sample;
-                        most_important_filter <= xai_filter;
-                        importance_score      <= xai_score;
-                        total_activation      <= xai_total;
-                        
-                        // Move to early exit check
-                        state <= S_EARLY_EXIT_CHECK;
                     end
                 end
 
@@ -476,7 +368,6 @@ module cnn_top #(
                     conv2_in_ch <= 4'd0;
                     acc         <= {ACC_WIDTH{1'b0}};
                     state       <= S_CONV2;
-                end
                 end
 
                 // Conv2D: in_ch=8, out_ch=16, kernel=3, padding='same'

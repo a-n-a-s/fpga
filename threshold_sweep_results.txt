@@ -1,0 +1,119 @@
+Early Exit Threshold Sweep Results
+============================================================
+
+ Threshold |  Exit Rate |  Overall Acc |  Avg Cycles
+------------------------------------------------------------
+±      300 |     100.0% |        53.0% |         833
+±      350 |     100.0% |        53.0% |         833
+±      400 |     100.0% |        53.0% |         833
+±      450 |     100.0% |        53.0% |         833
+±      500 |     100.0% |        53.0% |         833
+±      550 |     100.0% |        53.0% |         833
+±      600 |     100.0% |        53.0% |         833
+±      650 |      99.0% |        54.0% |         866
+±      700 |      94.0% |        58.0% |        1032
+±      750 |      83.0% |        67.0% |        1398
+±      800 |      72.0% |        77.0% |        1763
+
+============================================================
+Detailed Results:
+
+Threshold: ±300
+  Early Exit Count: 100/100 (100.0%)
+  Early Exit Accuracy: 53/100 (53.0%)
+  Full Network Count: 0/100
+  Full Network Accuracy: 0/0 (0.0%)
+  Overall Accuracy: 53/100 (53.0%)
+  Average Cycles: 833
+  Cycle Savings: 77.9%
+
+Threshold: ±350
+  Early Exit Count: 100/100 (100.0%)
+  Early Exit Accuracy: 53/100 (53.0%)
+  Full Network Count: 0/100
+  Full Network Accuracy: 0/0 (0.0%)
+  Overall Accuracy: 53/100 (53.0%)
+  Average Cycles: 833
+  Cycle Savings: 77.9%
+
+Threshold: ±400
+  Early Exit Count: 100/100 (100.0%)
+  Early Exit Accuracy: 53/100 (53.0%)
+  Full Network Count: 0/100
+  Full Network Accuracy: 0/0 (0.0%)
+  Overall Accuracy: 53/100 (53.0%)
+  Average Cycles: 833
+  Cycle Savings: 77.9%
+
+Threshold: ±450
+  Early Exit Count: 100/100 (100.0%)
+  Early Exit Accuracy: 53/100 (53.0%)
+  Full Network Count: 0/100
+  Full Network Accuracy: 0/0 (0.0%)
+  Overall Accuracy: 53/100 (53.0%)
+  Average Cycles: 833
+  Cycle Savings: 77.9%
+
+Threshold: ±500
+  Early Exit Count: 100/100 (100.0%)
+  Early Exit Accuracy: 53/100 (53.0%)
+  Full Network Count: 0/100
+  Full Network Accuracy: 0/0 (0.0%)
+  Overall Accuracy: 53/100 (53.0%)
+  Average Cycles: 833
+  Cycle Savings: 77.9%
+
+Threshold: ±550
+  Early Exit Count: 100/100 (100.0%)
+  Early Exit Accuracy: 53/100 (53.0%)
+  Full Network Count: 0/100
+  Full Network Accuracy: 0/0 (0.0%)
+  Overall Accuracy: 53/100 (53.0%)
+  Average Cycles: 833
+  Cycle Savings: 77.9%
+
+Threshold: ±600
+  Early Exit Count: 100/100 (100.0%)
+  Early Exit Accuracy: 53/100 (53.0%)
+  Full Network Count: 0/100
+  Full Network Accuracy: 0/0 (0.0%)
+  Overall Accuracy: 53/100 (53.0%)
+  Average Cycles: 833
+  Cycle Savings: 77.9%
+
+Threshold: ±650
+  Early Exit Count: 99/100 (99.0%)
+  Early Exit Accuracy: 53/99 (53.5%)
+  Full Network Count: 1/100
+  Full Network Accuracy: 1/1 (100.0%)
+  Overall Accuracy: 54/100 (54.0%)
+  Average Cycles: 866
+  Cycle Savings: 77.0%
+
+Threshold: ±700
+  Early Exit Count: 94/100 (94.0%)
+  Early Exit Accuracy: 52/94 (55.3%)
+  Full Network Count: 6/100
+  Full Network Accuracy: 6/6 (100.0%)
+  Overall Accuracy: 58/100 (58.0%)
+  Average Cycles: 1032
+  Cycle Savings: 72.6%
+
+Threshold: ±750
+  Early Exit Count: 83/100 (83.0%)
+  Early Exit Accuracy: 50/83 (60.2%)
+  Full Network Count: 17/100
+  Full Network Accuracy: 17/17 (100.0%)
+  Overall Accuracy: 67/100 (67.0%)
+  Average Cycles: 1398
+  Cycle Savings: 62.9%
+
+Threshold: ±800
+  Early Exit Count: 72/100 (72.0%)
+  Early Exit Accuracy: 49/72 (68.1%)
+  Full Network Count: 28/100
+  Full Network Accuracy: 28/28 (100.0%)
+  Overall Accuracy: 77/100 (77.0%)
+  Average Cycles: 1763
+  Cycle Savings: 53.2%
+

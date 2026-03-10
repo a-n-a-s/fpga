@@ -1,0 +1,61 @@
+WARNING: rtl/cnn_tb.v:90: $readmemh(input_data.mem): Not enough words in the file for the requested range [0:133].
+============================================
+CNN 1D Accelerator Testbench
+Hypoglycemia Prediction
+============================================
+
+Time	| Cycle	| State
+--------------------------------------------
+VCD info: dumpfile cnn_tb.vcd opened for output.
+ERROR: rtl/conv1d_layer.v:108: $readmemh: Unable to open conv1_weights.mem for reading.
+ERROR: rtl/conv1d_layer.v:109: $readmemh: Unable to open conv1_bias.mem for reading.
+ERROR: rtl/fc_layer.v:60: $readmemh: Unable to open fc_weights.mem for reading.
+ERROR: rtl/fc_layer.v:61: $readmemh: Unable to open fc_bias.mem for reading.
+Feeding          12 input samples...
+125000	|          1	| Feeding sample           0:  49
+135000	|          2	| Feeding sample           1:  54
+145000	|          3	| Feeding sample           2:  56
+155000	|          4	| Feeding sample           3:  57
+165000	|          5	| Feeding sample           4:  55
+175000	|          6	| Feeding sample           5:  53
+185000	|          7	| Feeding sample           6:  51
+195000	|          8	| Feeding sample           7:  49
+205000	|          9	| Feeding sample           8:  48
+215000	|         10	| Feeding sample           9:  46
+225000	|         11	| Feeding sample          10:  37
+235000	|         12	| Feeding sample          11:  28
+
+All samples fed. Waiting for result...
+--------------------------------------------
+DEBUG_CONV1_CYCLE: k=0, acc_before=0
+DEBUG_CONV1_CYCLE: k=1, acc_before=0
+  DEBUG_MAC: k=1, dezp=177 * weight=-7 = 44073, acc_after=44073
+DEBUG_CONV1_CYCLE: k=2, acc_before=-1239
+  DEBUG_MAC: k=2, dezp=182 * weight=127 = 23114, acc_after=21875
+DEBUG_CONV1_CYCLE: k=3, acc_before=21875
+DEBUG_CONV1_RESULT: acc=21875, bias=-2623, acc+b=19252, mult=6016
+DEBUG_EARLY_EXIT_CLASS0: feature_sum=-627, exiting after Pool
+8445000: OUTPUT VALID - Class = 0
+8455000: OUTPUT VALID - Class = 0
+
+============================================
+RESULT:
+  Predicted Class: 0
+  Confidence: 200/255 (78%)
+  High Confidence: YES
+  Early Exit Taken: YES
+  Exit Layer: 0
+  Total Cycles:        833
+--------------------------------------------
+XAI (Explainable AI):
+  Most Important Sample: # 0 (glucose reading)
+  Most Active Filter: # 0
+  Importance Score:  28/255
+  Total Activation: 128
+============================================
+Prediction: NORMAL (Class 0)
+>> CONFIDENCE THRESHOLD MET - Reliable prediction
+>> EARLY EXIT - Saved cycles with fast inference
+
+Testbench completed successfully.
+rtl/cnn_tb.v:202: $finish called at 8565000 (1ps)

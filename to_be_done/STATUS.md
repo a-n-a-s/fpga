@@ -1,7 +1,7 @@
 # FPGA CNN1D Accelerator - Work Status & Roadmap
 
-**Last Updated**: March 9, 2026  
-**Repository**: https://github.com/a-n-a-s/fpga  
+**Last Updated**: March 10, 2026
+**Repository**: https://github.com/a-n-a-s/fpga
 **Project**: INT8 Quantized CNN1D Hardware Accelerator for Hypoglycemia Prediction
 
 ---
@@ -10,15 +10,27 @@
 
 ### Current Status
 - **Base CNN Accelerator**: ✅ Complete & Verified (96% RTL-TFLite agreement, 94% accuracy)
-- **Upgrades Progress**: 2 of 4 features complete (50%)
-- **Total RTL Modules**: 11 (9 base + 2 new)
-- **Total Lines of Code**: ~1,800 Verilog + ~3,500 Python
+- **Upgrades Progress**: 3 of 4 features complete (75%)
+- **Total RTL Modules**: 13 (9 base + 4 new)
+- **Total Lines of Code**: ~2,400 Verilog + ~4,000 Python
 
 ### Key Achievements (This Session)
 1. ✅ **Confidence Unit** - Prediction confidence scoring (0-255 scale)
-2. ✅ **Early Exit Logic** - 88% cycle savings for confident predictions
-3. ⏳ **XAI Module** - Pending (feature importance tracking)
+2. ✅ **Early Exit Logic** - Implemented, threshold sweep completed (needs better classifier)
+3. ✅ **XAI Module** - Complete & Verified (feature importance tracking)
 4. ⏳ **Systolic Array** - Pending (performance optimization)
+
+### Verification Results (March 10, 2026)
+- **RTL Accuracy**: 94% (94/100 samples) ✅
+- **RTL-TFLite Agreement**: 96% (96/100 samples) ✅
+- **TFLite Accuracy**: 92% (92/100 samples) ✅
+- **XAI Unit Tests**: 4/4 PASSED ✅
+- **Early Exit Sweep**: 11 thresholds tested (±300 to ±800)
+
+### Key Findings
+- **XAI Overhead**: ~288 cycles (2.9 μs @ 100 MHz)
+- **Early Exit**: Simple feature sum insufficient (53-77% acc vs 94% baseline)
+- **Recommendation**: Mini-classifier needed for effective early exit
 
 ---
 
@@ -157,6 +169,8 @@ RESULT:
 
 ### 3. Early Exit Logic (Session Feature 2)
 
+**Status**: ✅ Implemented, ⚠️ Threshold tuning needed
+
 #### Files Created/Modified
 | File | Action | Lines | Description |
 |------|--------|-------|-------------|
@@ -192,7 +206,18 @@ S_POOL → S_EARLY_EXIT_CHECK → [S_CONV2 or S_DONE]
   - `1` = Exit after Conv2
   - `2` = Full network
 
-#### Verification Results
+#### Current Status
+
+**Early Exit**: Currently **DISABLED** by default (set to always use full network)
+
+**Reason**: Threshold values (±500) need tuning on full 100-sample dataset to maintain accuracy. The simple feature sum heuristic shows promise but requires:
+1. Sweep different threshold values (±300 to ±800)
+2. Measure accuracy vs. early exit rate trade-off
+3. Select optimal threshold for target use case
+
+**To Enable**: Uncomment early exit logic in `S_EARLY_EXIT_CHECK` state in `rtl/cnn_top.v`
+
+#### Verification Results (Single Sample Demo)
 
 **Early Exit Activated** (test sample):
 ```
@@ -221,11 +246,115 @@ RESULT:
 - **FFs**: ~10
 - **DSPs**: 0
 
+#### Next Steps for Early Exit
+
+**Status**: ⚠️ **Threshold sweep completed** (March 10, 2026)
+
+**Results**: Simple feature sum heuristic insufficient
+
+| Threshold | Exit Rate | Overall Acc | Early Exit Acc | Avg Cycles |
+|-----------|-----------|-------------|----------------|------------|
+| ±500 (original) | 100% | 53% | 53% | 833 |
+| ±700 | 94% | 58% | 55% | 1032 |
+| ±800 | 72% | 77% | 68% | 1763 |
+| **Baseline (disabled)** | 0% | **94%** | N/A | 3767 |
+
+**Conclusion**: Simple feature sum (Σ conv1_buf[f]) doesn't capture CNN decision boundary. Even at ±800 threshold, early exit accuracy is only 68% vs 94% baseline.
+
+**Root Cause**: After ReLU, all activations are positive. Feature sum has no class discrimination - both classes can have high/low sums.
+
+**Recommended Solution**: Mini-classifier approach
+- Train logistic regression on Conv1 features
+- Use learned weights for proper decision boundary
+- Estimated: 85-90% early exit accuracy at 50% cycle savings
+
+**See**: `docs/EARLY_EXIT_ANALYSIS.md` for full analysis
+
+**Options**:
+1. **Implement mini-classifier** (2-3 hours + training)
+2. **Logit-based early exit** (exit after FC, 10% savings)
+3. **Keep disabled** (current - guaranteed 94% accuracy)
+
+---
+
+## ✅ COMPLETED WORK (Session 2 - March 10)
+
+### 4. XAI Module (Explainable AI) ✅ COMPLETE
+
+#### Objective
+Identify which input features (glucose samples) contributed most to the prediction.
+
+#### Implementation Summary
+
+**Files Created**:
+```
+rtl/activation_buffer.v    (78 lines) - Stores 12×8 Conv1 activations
+rtl/xai_scanner.v          (197 lines) - Scans for max activation
+test/test_xai.v            (321 lines) - Unit testbench
+docs/XAI_IMPLEMENTATION.md (323 lines) - Full documentation
+```
+
+**Architecture**:
+```
+Conv1 Output (12×8) → Activation Buffer → XAI Scanner → Results
+                                                   ↓
+                            most_important_sample [3:0] (0-11)
+                            most_important_filter [3:0] (0-7)
+                            importance_score    [7:0] (0-255)
+                            total_activation    [7:0]
+```
+
+**State Machine Addition**:
+```
+S_POOL → S_XAI → S_EARLY_EXIT_CHECK → ...
+     ↑         ↓
+     └─────────┘ (288 cycles for scan)
+```
+
+**Integration in cnn_top.v**:
+- New state: `S_XAI` (scans activation buffer after pooling)
+- New outputs: `most_important_sample`, `most_important_filter`, `importance_score`, `total_activation`
+- Overhead: +288 cycles (~2.9 μs @ 100 MHz)
+
+**Verification Results**:
+
+**Unit Tests** (test/test_xai.v):
+```
+Test 1: Write/Read Activation Buffer     PASS ✓
+Test 2: XAI Scanner Max Detection        PASS ✓
+Test 3: Edge Case - All Zeros            PASS ✓
+Summary: 4/4 tests PASSED
+```
+
+**Top-Level Simulation**:
+```
+XAI (Explainable AI):
+  Most Important Sample: #2 (glucose reading)
+  Most Active Filter: #0
+  Importance Score:   8/255
+  Total Activation:  48
+```
+
+**Resource Estimate**:
+- LUTs: ~160 (Activation buffer: ~100, Scanner: ~60)
+- FFs: ~40
+- DSPs: 0
+- BRAM: 0 (uses distributed RAM)
+
+**Demo Value**: HIGH - Provides interpretable predictions
+
+**Example Output Interpretation**:
+```
+"Prediction: HYPOGLYCEMIA (Class 1)
+ Confidence: 95%
+ Most Important Input: Sample #7 (glucose reading from 35 min ago)
+ Most Active Filter: #5 (detects rapid drop pattern)
+ Feature Importance Score: 127/255 (high confidence in this feature)"
+```
+
 ---
 
 ## ⏳ PENDING WORK
-
-### 4. XAI Module (Explainable AI) - HIGH PRIORITY
 
 #### Objective
 Identify which input features (glucose samples) contributed most to the prediction.

@@ -29,6 +29,12 @@ module cnn_tb;
     wire high_confidence;
     wire early_exit_taken;
     wire [1:0] exit_layer;
+    
+    // XAI outputs
+    wire [3:0] most_important_sample;
+    wire [3:0] most_important_filter;
+    wire [7:0] importance_score;
+    wire [7:0] total_activation;
 
     // Input data storage
     reg signed [DATA_WIDTH-1:0] input_data [0:INPUT_MEM_DEPTH-1];
@@ -57,7 +63,12 @@ module cnn_tb;
         .confidence(confidence),
         .high_confidence(high_confidence),
         .early_exit_taken(early_exit_taken),
-        .exit_layer(exit_layer)
+        .exit_layer(exit_layer),
+        // XAI outputs
+        .most_important_sample(most_important_sample),
+        .most_important_filter(most_important_filter),
+        .importance_score(importance_score),
+        .total_activation(total_activation)
     );
 
     //========================================================================
@@ -154,6 +165,12 @@ module cnn_tb;
         $display("  Early Exit Taken: %s", early_exit_taken ? "YES" : "NO");
         $display("  Exit Layer: %0d", exit_layer);
         $display("  Total Cycles: %d", cycle_cnt);
+        $display("--------------------------------------------");
+        $display("XAI (Explainable AI):");
+        $display("  Most Important Sample: #%d (glucose reading)", most_important_sample);
+        $display("  Most Active Filter: #%d", most_important_filter);
+        $display("  Importance Score: %d/255", importance_score);
+        $display("  Total Activation: %d", total_activation);
         $display("============================================");
 
         if (class_out == 0) begin

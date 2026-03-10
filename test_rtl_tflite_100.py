@@ -32,13 +32,19 @@ for i in range(100):
         for v in input_hex:
             f.write(f'{v:02X}\n')
     result = subprocess.run(['vvp', 'scripts/simv'], capture_output=True, text=True)
+    # Find the LAST DEBUG_ARGMAX line (final result)
+    rtl_pred = None
     for line in result.stdout.split('\n'):
-        if 'DEBUG_ARGMAX' in line:
+        if 'DEBUG_ARGMAX' in line and 'class=' in line:
             rtl_pred = int(line.split('class=')[1].strip())
-            if rtl_pred == y[i]:
-                rtl_correct += 1
-            if rtl_pred == tflite_pred:
-                agreement += 1
+    
+    if rtl_pred is not None:
+        if rtl_pred == y[i]:
+            rtl_correct += 1
+        if rtl_pred == tflite_pred:
+            agreement += 1
+    else:
+        print(f"Warning: No DEBUG_ARGMAX found for sample {i}")
 
 print(f'TFLite accuracy: {tflite_correct}/100 = {tflite_correct}%')
 print(f'RTL accuracy:    {rtl_correct}/100 = {rtl_correct}%')
